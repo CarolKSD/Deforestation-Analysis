@@ -10,85 +10,159 @@ Original file is located at
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import geopandas as gpd
+import os
 import leafmap.foliumap as leafmap
 
 # Title and Description
 st.title("Xingu National Park Land Cover Analysis")
 st.write("""
-This Streamlit app visualizes land cover classification and deforestation trends in Xingu National Park over the years.
-The data includes:
-- Classified maps for land cover.
-- NDVI-based deforestation masks.
-- Trends in class area and percentage.
+This app visualizes land cover classification, NDVI maps, deforestation trends, 
+and class change dynamics in Xingu National Park over the years.
 """)
 
-# Sidebar
+# Sidebar Navigation
 st.sidebar.title("Navigation")
-options = st.sidebar.radio("Choose a section:", ["Overview", "Deforestation Maps", "Class Evolution", "Deforestation Trends"])
+options = st.sidebar.radio(
+    "Choose a section:",
+    ["Overview", "NDVI Maps", "Classified Maps", "Deforestation Masks", "Class Change Maps", "Trends and CSV Data"]
+)
 
-# Load CSV data
-class_evolution = pd.read_csv("class_evolution_with_percentage.csv")
-deforestation_trends = pd.read_csv("deforestation_trends.csv")
+# Define folders for GeoTIFF and CSV files
+ndvi_folder = "data/ndvi/"
+classified_folder = "data/classified/"
+deforestation_folder = "data/deforestation/"
+class_change_folder = "data/class_change/"
+csv_folder = "data/csv/"
 
+# Helper function to list files in a folder
+def list_files(folder, extension=".tif"):
+    return [f for f in os.listdir(folder) if f.endswith(extension)]
+
+# Section: Overview
 if options == "Overview":
     st.subheader("Overview")
     st.write("""
-    - **NDVI-based Deforestation** highlights vegetation loss across the years.
-    - **Land Cover Classification** maps show transitions between classes.
-    - Explore trends and visualize the data interactively!
+    This app allows you to:
+    - View **NDVI maps** to monitor vegetation health.
+    - Explore **classified maps** of land cover over multiple years.
+    - Analyze **deforestation masks** showing areas of vegetation loss.
+    - Understand **class change dynamics**, such as deforestation and reforestation.
+    - Visualize and download **CSV data** with trends and percentages.
     """)
 
-if options == "Deforestation Maps":
-    st.subheader("NDVI-Based Deforestation Maps")
-    st.write("View deforestation areas between consecutive years.")
+# Section: NDVI Maps
+if options == "NDVI Maps":
+    st.subheader("NDVI Maps")
+    st.write("Visualize NDVI maps for different years to track vegetation health.")
 
-    year = st.selectbox("Select Year Range:", deforestation_trends["Period"].unique())
-    geojson_path = f"Deforestation_{year}.geojson"  # Replace with actual paths to GeoTIFFs or GeoJSONs
-    map_deforestation = leafmap.Map(center=[-11.8, -53.5], zoom=7)  # Adjust center/zoom as needed
-    map_deforestation.add_geojson(geojson_path, layer_name=f"Deforestation {year}")
-    map_deforestation.to_streamlit()
+    ndvi_files = list_files(ndvi_folder)
+    selected_ndvi = st.selectbox("Select NDVI Map:", ndvi_files)
 
-if options == "Class Evolution":
-    st.subheader("Class Evolution Over Time")
-    st.write("Explore how each land cover class evolves over time.")
+    if selected_ndvi:
+        ndvi_path = os.path.join(ndvi_folder, selected_ndvi)
+        m = leafmap.Map(center=[-11.8, -53.5], zoom=7)  # Adjust for Xingu region
+        m.add_raster(ndvi_path, layer_name=f"NDVI {selected_ndvi}", colormap="RdYlGn")
+        m.to_streamlit()
 
-    # Plot class areas
-    fig, ax = plt.subplots(figsize=(10, 6))
-    for cls in class_evolution["Class"].unique():
-        data = class_evolution[class_evolution["Class"] == cls]
-        ax.plot(data["Year"], data["Area (km²)"], marker='o', label=cls)
-    ax.set_title("Land Cover Class Areas Over Time")
-    ax.set_xlabel("Year")
-    ax.set_ylabel("Area (km²)")
-    ax.legend(title="Classes")
-    st.pyplot(fig)
+# Section: Classified Maps
+if options == "Classified Maps":
+    st.subheader("Classified Maps")
+    st.write("Explore classified maps of land cover.")
 
-    # Show percentage chart
-    st.write("### Percentage Change Over Time")
-    fig, ax = plt.subplots(figsize=(10, 6))
-    for cls in class_evolution["Class"].unique():
-        data = class_evolution[class_evolution["Class"] == cls]
-        ax.plot(data["Year"], data["Percentage (%)"], marker='o', label=cls)
-    ax.set_title("Land Cover Class Percentages Over Time")
-    ax.set_xlabel("Year")
-    ax.set_ylabel("Percentage (%)")
-    ax.legend(title="Classes")
-    st.pyplot(fig)
+    classified_files = list_files(classified_folder)
+    selected_classified = st.selectbox("Select Classified Map:", classified_files)
 
-if options == "Deforestation Trends":
-    st.subheader("Deforestation Trends")
-    st.write("Analyze the yearly deforestation trends.")
+    if selected_classified:
+        classified_path = os.path.join(classified_folder, selected_classified)
+        m = leafmap.Map(center=[-11.8, -53.5], zoom=7)
+        m.add_raster(classified_path, layer_name=f"Classified {selected_classified}", colormap="viridis")
+        m.to_streamlit()
 
-    # Plot deforestation trends
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.bar(deforestation_trends["Period"], deforestation_trends["Deforested Area (km²)"], color="red")
-    ax.set_title("Deforested Area Per Period")
-    ax.set_xlabel("Period")
-    ax.set_ylabel("Deforested Area (km²)")
-    ax.set_xticklabels(deforestation_trends["Period"], rotation=45)
-    st.pyplot(fig)
+# Section: Deforestation Masks
+if options == "Deforestation Masks":
+    st.subheader("Deforestation Masks")
+    st.write("View deforestation masks showing areas of vegetation loss.")
 
-    # Show table
-    st.write("### Deforestation Data Table")
-    st.dataframe(deforestation_trends)
+    deforestation_files = list_files(deforestation_folder)
+    selected_deforestation = st.selectbox("Select Deforestation Mask:", deforestation_files)
+
+    if selected_deforestation:
+        deforestation_path = os.path.join(deforestation_folder, selected_deforestation)
+        m = leafmap.Map(center=[-11.8, -53.5], zoom=7)
+        m.add_raster(deforestation_path, layer_name=f"Deforestation {selected_deforestation}", colormap="OrRd")
+        m.to_streamlit()
+
+# Section: Class Change Maps
+if options == "Class Change Maps":
+    st.subheader("Class Change Maps")
+    st.write("Analyze changes between classes (e.g., forest to agriculture, reforestation).")
+
+    class_change_files = list_files(class_change_folder)
+    selected_class_change = st.selectbox("Select Class Change Map:", class_change_files)
+
+    if selected_class_change:
+        class_change_path = os.path.join(class_change_folder, selected_class_change)
+        m = leafmap.Map(center=[-11.8, -53.5], zoom=7)
+        m.add_raster(class_change_path, layer_name=f"Class Change {selected_class_change}", colormap="coolwarm")
+        m.to_streamlit()
+
+# Section: Trends and CSV Data
+if options == "Trends and CSV Data":
+    st.subheader("Trends and Data Visualization")
+    st.write("Explore trends and download CSV data.")
+
+    # Load CSV files
+    class_evolution = pd.read_csv(os.path.join(csv_folder, "class_evolution_with_percentage.csv"))
+    deforestation_trends = pd.read_csv(os.path.join(csv_folder, "deforestation_trends.csv"))
+
+    trend_options = st.radio("Select a trend to visualize:", ["Class Evolution", "Deforestation Trends"])
+
+    if trend_options == "Class Evolution":
+        # Plot class areas
+        fig, ax = plt.subplots(figsize=(10, 6))
+        for cls in class_evolution["Class"].unique():
+            data = class_evolution[class_evolution["Class"] == cls]
+            ax.plot(data["Year"], data["Area (km²)"], marker='o', label=cls)
+        ax.set_title("Land Cover Class Areas Over Time")
+        ax.set_xlabel("Year")
+        ax.set_ylabel("Area (km²)")
+        ax.legend(title="Classes")
+        st.pyplot(fig)
+
+        # Plot percentages
+        st.write("### Percentage Change Over Time")
+        fig, ax = plt.subplots(figsize=(10, 6))
+        for cls in class_evolution["Class"].unique():
+            data = class_evolution[class_evolution["Class"] == cls]
+            ax.plot(data["Year"], data["Percentage (%)"], marker='o', label=cls)
+        ax.set_title("Land Cover Class Percentages Over Time")
+        ax.set_xlabel("Year")
+        ax.set_ylabel("Percentage (%)")
+        ax.legend(title="Classes")
+        st.pyplot(fig)
+
+        # Option to download CSV
+        st.download_button(
+            label="Download Class Evolution Data",
+            data=class_evolution.to_csv(index=False),
+            file_name="class_evolution_with_percentage.csv",
+            mime="text/csv"
+        )
+
+    elif trend_options == "Deforestation Trends":
+        # Plot deforestation trends
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.bar(deforestation_trends["Period"], deforestation_trends["Deforested Area (km²)"], color="red")
+        ax.set_title("Deforested Area Per Period")
+        ax.set_xlabel("Period")
+        ax.set_ylabel("Deforested Area (km²)")
+        ax.set_xticklabels(deforestation_trends["Period"], rotation=45)
+        st.pyplot(fig)
+
+        # Option to download CSV
+        st.download_button(
+            label="Download Deforestation Trends Data",
+            data=deforestation_trends.to_csv(index=False),
+            file_name="deforestation_trends.csv",
+            mime="text/csv"
+        )
