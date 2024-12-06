@@ -16,7 +16,7 @@ import leafmap.foliumap as leafmap
 # Title and Description
 st.title("Xingu National Park Land Cover Analysis")
 st.write("""
-This app visualizes land cover classification, NDVI maps, deforestation trends, 
+This app visualizes land cover classification, deforestation trends, 
 and class change dynamics in Xingu National Park over the years.
 """)
 
@@ -24,11 +24,10 @@ and class change dynamics in Xingu National Park over the years.
 st.sidebar.title("Navigation")
 options = st.sidebar.radio(
     "Choose a section:",
-    ["Overview", "NDVI Maps", "Classified Maps", "Deforestation Masks", "Class Change Maps", "Trends and CSV Data"]
+    ["Overview", "Classified Maps", "Deforestation Masks", "Class Change Maps", "Trends and CSV Data"]
 )
 
 # Define folders for GeoTIFF and CSV files
-ndvi_folder = "data/ndvi/"
 classified_folder = "data/classified/"
 deforestation_folder = "data/deforestation/"
 class_change_folder = "data/class_change/"
@@ -43,26 +42,11 @@ if options == "Overview":
     st.subheader("Overview")
     st.write("""
     This app allows you to:
-    - View **NDVI maps** to monitor vegetation health.
     - Explore **classified maps** of land cover over multiple years.
     - Analyze **deforestation masks** showing areas of vegetation loss.
     - Understand **class change dynamics**, such as deforestation and reforestation.
     - Visualize and download **CSV data** with trends and percentages.
     """)
-
-# Section: NDVI Maps
-if options == "NDVI Maps":
-    st.subheader("NDVI Maps")
-    st.write("Visualize NDVI maps for different years to track vegetation health.")
-
-    ndvi_files = list_files(ndvi_folder)
-    selected_ndvi = st.selectbox("Select NDVI Map:", ndvi_files)
-
-    if selected_ndvi:
-        ndvi_path = os.path.join(ndvi_folder, selected_ndvi)
-        m = leafmap.Map(center=[-11.8, -53.5], zoom=7)  # Adjust for Xingu region
-        m.add_raster(ndvi_path, layer_name=f"NDVI {selected_ndvi}", colormap="RdYlGn")
-        m.to_streamlit()
 
 # Section: Classified Maps
 if options == "Classified Maps":
