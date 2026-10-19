@@ -4,6 +4,8 @@ import streamlit as st
 import folium
 from streamlit_folium import st_folium
 import os
+from pathlib import Path
+from raster_maps import raster_overlay
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -27,22 +29,32 @@ options = st.sidebar.radio(
 )
 
 # Define folders for GeoTIFF files and CSV data
-tiff_folder = "data/"
+tiff_folder = Path(__file__).resolve().parent / "data"
 csv_folder = os.path.join(tiff_folder, "csv/")
 
 # Helper function to list GeoTIFF files in a folder
 def list_files(folder, extension=".tif"):
-    return [f for f in os.listdir(folder) if f.endswith(extension)]
+    if not os.path.isdir(folder):
+        st.warning(f"Data folder not found: {folder}")
+        return []
+    return sorted(f for f in os.listdir(folder) if f.endswith(extension))
 
 # Helper function to create a Folium map with raster overlay
-def create_map(raster_path, bounds, layer_name):
+@st.cache_data(show_spinner=False, max_entries=4)
+def load_overlay(raster_path, modified_time):
+    return raster_overlay(raster_path)
+
+
+def create_map(raster_path, layer_name):
+    pixels, bounds = load_overlay(raster_path, os.path.getmtime(raster_path))
     m = folium.Map(location=[-11.8, -53.5], zoom_start=7)
     folium.raster_layers.ImageOverlay(
         name=layer_name,
-        image=raster_path,
+        image=pixels,
         bounds=bounds,
         opacity=0.6,
     ).add_to(m)
+    m.fit_bounds(bounds)
     folium.LayerControl().add_to(m)
     return m
 
@@ -85,16 +97,15 @@ if options == "Classified Maps":
 
     if selected_file:
         file_path = os.path.join(classified_folder, selected_file)
-        bounds = [[-13.0298, -54.0623], [-10.5564, -52.4912]]  # Exact bounds for Xingu
 
         classified_legend = {
             "Forest": (0, 255, 0),
             "Water": (0, 0, 255),
             "Agriculture": (255, 255, 0),
-            "Exposed Soil": (255, 0, 0)
+            "Exposed Soil": (255, 42, 42)
         }
 
-        folium_map = create_map(file_path, bounds, f"Classified Map: {selected_file}")
+        folium_map = create_map(file_path, f"Classified Map: {selected_file}")
         st_folium(folium_map, width=700, height=500)
 
         # Display legend below the map
@@ -107,12 +118,14 @@ if options == "Class Change Maps":
 
     class_change_folder = os.path.join(tiff_folder, "class_change/")
     class_change_files = list_files(class_change_folder)
+    corrected_files = [f for f in class_change_files if f.startswith("Categorical_Change_Map_")]
+    if corrected_files:
+        class_change_files = corrected_files
 
     selected_file = st.selectbox("Select Class Change Map:", class_change_files)
 
     if selected_file:
         file_path = os.path.join(class_change_folder, selected_file)
-        bounds = [[-13.0298, -54.0623], [-10.5564, -52.4912]]  # Exact bounds for Xingu
 
         change_class_legend = {
             "Forest → Forest (Maintenance)": (0, 255, 0),  # Green
@@ -122,11 +135,18 @@ if options == "Class Change Maps":
             "Agriculture → Forest (Reforestation)": (255, 255, 0)  # Yellow
         }
 
-        folium_map = create_map(file_path, bounds, f"Class Change Map: {selected_file}")
+        folium_map = create_map(file_path, f"Class Change Map: {selected_file}")
         st_folium(folium_map, width=700, height=500)
 
         # Display legend below the map
-        display_legend(change_class_legend, "Class Change Dynamics")
+        if selected_file.startswith("Categorical_Change_Map_"):
+            display_legend(change_class_legend, "Class Change Dynamics")
+            st.caption("Only the five listed transitions are shown; other transitions are transparent.")
+        else:
+            st.warning("Legacy map: colors were exported using a continuous scale and do not "
+                       "identify transition categories reliably. Use the tables for numeric results. "
+                       "Regenerate Categorical_Change_Map files with the updated notebook "
+                       "to display the corrected legend.")
 
 # Section: Trends and Conclusions
 if options == "Trends and Conclusions":

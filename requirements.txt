@@ -3,3 +3,5 @@ folium
 streamlit-folium
 pandas
 matplotlib
+rasterio
+numpy
